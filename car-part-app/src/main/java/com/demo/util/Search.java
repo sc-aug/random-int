@@ -1,4 +1,4 @@
-package com.demo;
+package com.demo.util;
 
 public class Search {
 
@@ -21,7 +21,7 @@ public class Search {
     }
 
     private boolean checkYear(int year) {
-        if (year >= 1900 && year <= 2050) {
+        if (year > 0) {
             return true;
         } else {
             return false;

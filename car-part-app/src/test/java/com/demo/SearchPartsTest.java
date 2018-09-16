@@ -1,79 +1,101 @@
 package com.demo;
 
-import org.junit.Before;
+import static org.junit.Assert.assertEquals;
+
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import static org.junit.Assert.assertEquals;
+import com.demo.dto.Part;
+import com.demo.exception.InvalidPartException;
+import com.demo.service.PartService;
+import com.demo.service.PartServiceImpl;
 
 public class SearchPartsTest {
 
-    private PartRepository partRepo;
+	private static PartService service;
 
-    /**
-     * Setup 3 different type of car parts
-     *      40 of [ toyota camry 2001 ]
-     *      30 of [ toyota corolla 2000 ]
-     *      30 of [ honda civic 2001 ]
-     */
-    @Before
-    public void setup() {
-        partRepo = new PartRepository(1L, new ConcurrentHashMap<>());
+	/**
+	 * Setup 3 different type of car parts
+	 *      40 of [ toyota camry 2001 ]
+	 *      30 of [ toyota corolla 2000 ]
+	 *      30 of [ honda civic 2001 ]
+	 * @throws InterruptedException 
+	 */
+	@BeforeClass
+	public static void setup() throws InterruptedException {
+		service = new PartServiceImpl();
 
-        int N = 100;
-
-        for (int i = 1; i <= N; i++) {
-            Part p = null;
-            if (i > 60) {
-                new Thread(() -> {
-                    partRepo.add(new Part("toyota", "camry", 2001));
-                }).start();
-            } else if (i > 30) {
-                new Thread(() -> {
-                    partRepo.add(new Part("toyota", "corolla", 2000));
-                }).start();
-            } else {
-                new Thread(() -> {
-                    partRepo.add(new Part("honda", "civic", 2001));
-                }).start();
-            }
-
-        }
-    }
+		int N = 100;
+		ExecutorService ex= Executors.newCachedThreadPool();
+		CountDownLatch latch= new CountDownLatch(100);
+		
+		for(int i = 61; i <= N; i ++) {
+			ex.execute(() -> {
+				try {
+					service.addPart(new Part("toyota", "camry", 2001));
+					latch.countDown();
+				} catch (InvalidPartException e) {
+					e.printStackTrace();
+				}
+			});
+		}
+		for (int i = 31; i<=60; i++) {
+			ex.execute(()-> {
+				try {
+					service.addPart(new Part("toyota", "corolla", 2000));
+					latch.countDown();
+				} catch (InvalidPartException e) {
+					e.printStackTrace();
+				}
+			});
+		}
+		for(int i = 1; i <= 30; i ++) {
+			ex.execute(() -> {
+				try {
+					service.addPart(new Part("honda", "civic", 2001));
+					latch.countDown();
+				} catch (InvalidPartException e) {
+					e.printStackTrace();
+				}
+			});
+		}
+		latch.await(2000, TimeUnit.MILLISECONDS);
+	}
+	
 
     @Test
     public void testSearchOnMake() {
-        List<Part> pList = partRepo.search(new Search("toyota", "", -1));
+        List<Part> pList = service.searchPartByMake("toyota");
         assertEquals(70, pList.size());
     }
 
     @Test
     public void testSearchOnModel() {
-        List<Part> pList = partRepo.search(new Search(null, "CAMRY", -1));
+        List<Part> pList = service.searchPartByModel("camry");
         assertEquals(40, pList.size());
     }
 
     @Test
     public void testSearchOnYear() {
-        List<Part> pList = partRepo.search(new Search(null, "", 2001));
+        List<Part> pList = service.searchPartByYear(2001);
         assertEquals(70, pList.size());
     }
 
     @Test
     public void testSearchOnMultipleCriterias1() {
-        List<Part> pList = partRepo.search(new Search(null, "civiC", 2001));
+        List<Part> pList = service.searchPart("honda", "civic", 2001);
         assertEquals(30, pList.size());
     }
 
     @Test
     public void testSearchOnMultipleCriterias2() {
-        List<Part> pList = partRepo.search(new Search("toyota", "civiC", 2001));
-        assertEquals(0, pList.size());
+    		List<Part> pList = service.searchPart("toyota", "", -1);
+        assertEquals(70, pList.size());
     }
-
 }
