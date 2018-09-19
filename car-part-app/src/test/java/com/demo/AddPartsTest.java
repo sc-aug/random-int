@@ -65,7 +65,7 @@ public class AddPartsTest {
 
 		countDownLatch.await(1, TimeUnit.MINUTES);
 		System.out.println(service.getNumberOfParts());
-		assertTrue(N == service.getNumberOfParts());
+		assertTrue(N == this.service.getNumberOfParts());
 	}
 
 }
